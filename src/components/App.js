@@ -11,17 +11,37 @@ function App() {
   const [selectedShow, setSelectedShow] = useState("");
   const [episodes, setEpisodes] = useState([]);
   const [filterByRating, setFilterByRating] = useState("");
+  const [newAPIPage, setNewAPIPage] = useState(1);
+  const [isFetching, setIsFetching] = useState(false);
 
   useEffect(() => {
     Adapter.getShows().then((shows) => setShows(shows));
   }, []);
+  
+  useEffect(() => {
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
-    window.scrollTo(0, 0);
-  });
+    if (!isFetching) return;
+    fetch (`http://api.tvmaze.com/shows?page=${newAPIPage}`)
+    .then(r => r.json())
+    .then(data => {
+      setNewAPIPage(newAPIPage => newAPIPage + 1)
+      setShows(shows.concat(data))
+      setIsFetching(isFetching => !isFetching)
+    })
+  }, [isFetching]);
+
+  function handleScroll() {
+    if (window.innerHeight + (window.innerHeight * 0.5) + document.documentElement.scrollTop > document.body.scrollHeight) {
+      setIsFetching(isFetching => !isFetching);
+    }
+  }
 
   function handleSearch(e) {
-    setSearchTerm(e.target.value.toLowerCase());
+    setSearchTerm(e.target.value);
   }
 
   function handleFilter(e) {
@@ -37,12 +57,9 @@ function App() {
     });
   }
 
-  let displayShows = shows;
-  if (filterByRating) {
-    displayShows = displayShows.filter((s) => {
-      s.rating.average >= filterByRating;
-    });
-  }
+  const showsToDisplay = filterByRating ? 
+    shows.filter(show => show.rating.average >= Number(filterByRating) && show.rating.average < Number(filterByRating) + 1)
+    : shows
 
   return (
     <div>
@@ -64,7 +81,7 @@ function App() {
         </Grid.Column>
         <Grid.Column width={11}>
           <TVShowList
-            shows={displayShows}
+            shows={showsToDisplay}
             selectShow={selectShow}
             searchTerm={searchTerm}
           />
